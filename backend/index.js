@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import path from "path";
 import dotenv from "dotenv";
 import cors from "cors";
+import axios from "axios";
 import authRoutes from "./routes/auth.js";
 import db from "./config/database.js";
 
@@ -83,6 +84,34 @@ io.on("connection", (socket) => {
 
   socket.on("languageChange", ({ roomId, language }) => {
     io.to(roomId).emit("languageUpdate", language);
+  });
+
+  // Code compilation handler
+  socket.on("compileCode", async ({ code, roomId, language, version, input }) => {
+    try {
+      // Using Piston API for code execution
+      const response = await axios.post('https://emkc.org/api/v2/piston/execute', {
+        language: language,
+        version: version || '*',
+        files: [{
+          content: code
+        }],
+        stdin: input || ''
+      });
+
+      socket.emit("codeResponse", {
+        run: {
+          output: response.data.run.output || response.data.run.stderr || 'No output'
+        }
+      });
+    } catch (error) {
+      console.error('Compilation error:', error.message);
+      socket.emit("codeResponse", {
+        run: {
+          output: `Error: ${error.message}`
+        }
+      });
+    }
   });
 
   socket.on("disconnect", () => {
