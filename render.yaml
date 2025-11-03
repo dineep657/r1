@@ -1,8 +1,30 @@
 services:
+  # MySQL Database
+  - type: pserv
+    name: realtime-code-db
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile.mysql
+    envVars:
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+      - key: MYSQL_DATABASE
+        value: collab_coding
+      - key: MYSQL_USER
+        value: codecollab_user
+      - key: MYSQL_PASSWORD
+        generateValue: true
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 1
+
   # Backend Service
   - type: web
-    name: realtime-code-editor-backend
+    name: realtime-code-backend
     env: node
+    region: oregon
+    plan: starter
     buildCommand: npm install
     startCommand: npm start
     envVars:
@@ -11,28 +33,45 @@ services:
       - key: PORT
         value: 10000
       - key: DB_HOST
-        sync: false
+        fromService:
+          type: pserv
+          name: realtime-code-db
+          property: host
       - key: DB_USER
-        sync: false
+        value: codecollab_user
       - key: DB_PASSWORD
-        sync: false
+        fromService:
+          type: pserv
+          name: realtime-code-db
+          envVarKey: MYSQL_PASSWORD
       - key: DB_NAME
-        sync: false
+        value: collab_coding
       - key: DB_PORT
-        sync: false
+        value: 3306
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRE
         value: 7d
       - key: FRONTEND_URL
-        sync: false
+        fromService:
+          type: web
+          name: realtime-code-frontend
+          property: host
 
-  # Frontend Service
+  # Frontend Service  
   - type: web
-    name: realtime-code-editor-frontend
+    name: realtime-code-frontend
     env: static
-    buildCommand: cd frontend && npm install && npm run build
+    region: oregon
+    plan: starter
+    buildCommand: cd frontend && npm install && VITE_API_URL=$BACKEND_URL VITE_SOCKET_URL=$BACKEND_URL npm run build
     staticPublishPath: frontend/dist
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: realtime-code-backend
+          property: host
     routes:
       - type: rewrite
         source: /*

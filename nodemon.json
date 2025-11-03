@@ -1,0 +1,7 @@
+{
+  "env": {
+    "PORT": "5003",
+    "FRONTEND_URL": "http://localhost:5173"
+  }
+}
+
