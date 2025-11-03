@@ -2,14 +2,33 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import path from "path";
+import dotenv from "dotenv";
+import cors from "cors";
+import authRoutes from "./routes/auth.js";
+import db from "./config/database.js";
+
+dotenv.config();
 
 const app = express();
+
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use("/api/auth", authRoutes);
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
@@ -86,5 +105,5 @@ app.get("*", (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log("server is working on port 5000");
+  console.log(`🚀 Server is running on port ${port}`);
 });
