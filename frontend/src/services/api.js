@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -20,6 +20,19 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
+  }
+);
+
+// Normalize error responses so components can show meaningful messages
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const normalized = {
+      status: error?.response?.status,
+      data: error?.response?.data,
+      message: error?.response?.data?.message || error?.message || 'Network error',
+    };
+    return Promise.reject(normalized);
   }
 );
 

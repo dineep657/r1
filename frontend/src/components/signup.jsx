@@ -47,7 +47,7 @@ const Signup = ({ setUser }) => {
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Signup failed. Please try again.');
+      setError(err.message || err.response?.data?.message || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -8,9 +8,14 @@ const router = express.Router();
 
 // Generate JWT Token
 const generateToken = (userId, email) => {
+  const secret = process.env.JWT_SECRET || 'dev_secret';
+  if (!process.env.JWT_SECRET) {
+    // eslint-disable-next-line no-console
+    console.warn('⚠️  JWT_SECRET is not set. Using an insecure development secret.');
+  }
   return jwt.sign(
     { id: userId, email },
-    process.env.JWT_SECRET,
+    secret,
     { expiresIn: process.env.JWT_EXPIRE || '7d' }
   );
 };

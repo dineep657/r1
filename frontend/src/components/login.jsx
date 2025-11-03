@@ -30,7 +30,7 @@ const Login = ({ setUser }) => {
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.message || err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
