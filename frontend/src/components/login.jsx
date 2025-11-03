@@ -1,116 +1,52 @@
-// frontend/src/components/Login.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Code2 } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 const Login = ({ setUser }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    if (email && password) {
-      setUser({ email });
-      navigate('/');
+  const handleSubmit = async () => {
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await authAPI.login({ email, password });
+      
+      if (response.success) {
+        // Store token and user data
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        setUser(response.data.user);
+        navigate('/');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const styles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom right, #312e81, #7c3aed, #db2777)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0 1.5rem',
-    },
-    card: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(16px)',
-      borderRadius: '1rem',
-      padding: '2rem',
-      maxWidth: '28rem',
-      width: '100%',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-    },
-    header: {
-      textAlign: 'center',
-      marginBottom: '2rem',
-    },
-    iconContainer: {
-      margin: '0 auto 1rem',
-      width: '4rem',
-      height: '4rem',
-    },
-    title: {
-      fontSize: '1.875rem',
-      fontWeight: 'bold',
-      color: 'white',
-      marginBottom: '0.5rem',
-    },
-    subtitle: {
-      color: '#e9d5ff',
-    },
-    form: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '1.5rem',
-    },
-    inputGroup: {
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    label: {
-      display: 'block',
-      color: 'white',
-      marginBottom: '0.5rem',
-      fontWeight: '500',
-    },
-    input: {
-      width: '100%',
-      padding: '0.75rem 1rem',
-      background: 'rgba(255, 255, 255, 0.1)',
-      color: 'white',
+    // ... (keep existing styles)
+    error: {
+      color: '#ef4444',
+      fontSize: '0.875rem',
+      marginBottom: '1rem',
+      padding: '0.75rem',
+      background: 'rgba(239, 68, 68, 0.1)',
       borderRadius: '0.5rem',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      fontSize: '1rem',
-      transition: 'all 0.3s',
-    },
-    button: {
-      width: '100%',
-      padding: '0.75rem 1.5rem',
-      background: '#9333ea',
-      color: 'white',
-      fontWeight: '600',
-      border: 'none',
-      borderRadius: '0.5rem',
-      cursor: 'pointer',
-      fontSize: '1rem',
-      transition: 'all 0.3s',
-    },
-    footer: {
-      marginTop: '1.5rem',
-      textAlign: 'center',
-    },
-    footerText: {
-      color: '#e9d5ff',
-    },
-    link: {
-      color: '#a78bfa',
-      fontWeight: '600',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      textDecoration: 'none',
-      fontSize: '1rem',
-    },
-    backLink: {
-      marginTop: '1rem',
-      color: '#c4b5fd',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '1rem',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
     },
   };
 
@@ -125,6 +61,8 @@ const Login = ({ setUser }) => {
           <p style={styles.subtitle}>Login to continue coding</p>
         </div>
 
+        {error && <div style={styles.error}>{error}</div>}
+
         <div style={styles.form}>
           <div style={styles.inputGroup}>
             <label style={styles.label}>Email</label>
@@ -134,6 +72,7 @@ const Login = ({ setUser }) => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               style={styles.input}
+              disabled={loading}
               onFocus={(e) => e.target.style.borderColor = '#a78bfa'}
               onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}
             />
@@ -148,6 +87,7 @@ const Login = ({ setUser }) => {
               placeholder="••••••••"
               onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
               style={styles.input}
+              disabled={loading}
               onFocus={(e) => e.target.style.borderColor = '#a78bfa'}
               onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}
             />
@@ -155,17 +95,16 @@ const Login = ({ setUser }) => {
 
           <button
             onClick={handleSubmit}
-            style={styles.button}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#7c3aed';
-              e.target.style.transform = 'scale(1.05)';
+            disabled={loading}
+            style={{
+              ...styles.button,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer',
             }}
-            onMouseLeave={(e) => {
-              e.target.style.background = '#9333ea';
-              e.target.style.transform = 'scale(1)';
-            }}
+            onMouseEnter={(e) => !loading && (e.target.style.background = '#7c3aed')}
+            onMouseLeave={(e) => !loading && (e.target.style.background = '#9333ea')}
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </div>
 
@@ -175,8 +114,7 @@ const Login = ({ setUser }) => {
             <button
               onClick={() => navigate('/signup')}
               style={styles.link}
-              onMouseEnter={(e) => e.target.style.color = '#c4b5fd'}
-              onMouseLeave={(e) => e.target.style.color = '#a78bfa'}
+              disabled={loading}
             >
               Sign Up
             </button>
@@ -184,8 +122,7 @@ const Login = ({ setUser }) => {
           <button
             onClick={() => navigate('/')}
             style={styles.backLink}
-            onMouseEnter={(e) => e.target.style.color = '#e9d5ff'}
-            onMouseLeave={(e) => e.target.style.color = '#c4b5fd'}
+            disabled={loading}
           >
             ← Back to Home
           </button>
