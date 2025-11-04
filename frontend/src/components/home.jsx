@@ -188,40 +188,17 @@ const Home = ({ user, setUser }) => {
           <span>CodeCollab</span>
         </div>
         <div style={styles.navButtons}>
-          {user ? (
-            <>
-              <span style={{ ...styles.loginButton, cursor: 'default' }}>
-                Welcome, {user.name}
-              </span>
-              <button
-                onClick={handleLogout}
-                style={styles.signupButton}
-                onMouseEnter={(e) => e.target.style.background = '#dc2626'}
-                onMouseLeave={(e) => e.target.style.background = 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)'}
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => navigate('/login')}
-                style={styles.loginButton}
-                onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-                onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => navigate('/signup')}
-                style={styles.signupButton}
-                onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
-              >
-                Sign Up
-              </button>
-            </>
-          )}
+          <span style={{ ...styles.loginButton, cursor: 'default' }}>
+            {user ? `Welcome, ${user.name}` : 'Guest Mode'}
+          </span>
+          <button
+            onClick={() => navigate('/editor')}
+            style={styles.signupButton}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+          >
+            Open Editor
+          </button>
         </div>
       </nav>
 
@@ -319,8 +296,6 @@ const Home = ({ user, setUser }) => {
             <span>CodeCollab</span>
           </div>
           <div style={styles.footerLinks}>
-            <button onClick={() => navigate('/login')} style={{ ...styles.loginButton, background: 'transparent', border: 'none' }}>Login</button>
-            <button onClick={() => navigate('/signup')} style={{ ...styles.loginButton, background: 'transparent', border: 'none' }}>Sign Up</button>
             <button onClick={() => navigate('/editor')} style={{ ...styles.loginButton, background: 'transparent', border: 'none' }}>Editor</button>
           </div>
           <div style={{ opacity: 0.7 }}>

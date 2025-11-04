@@ -1,43 +1,25 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Home from './components/home';
-import Login from './components/login';
-import Signup from './components/signup';
 import Editor from './components/editor';
-import { authAPI } from './services/api';
+// Auth disabled: hide login/signup and allow guest access
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-      
-      // Verify token is still valid
-      authAPI.getCurrentUser()
-        .then(response => {
-          if (response.success) {
-            setUser(response.data.user);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
-          }
-        })
-        .catch(() => {
-          // Token expired or invalid
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setUser(null);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
+    // Auth disabled: create a guest user
+    const existing = localStorage.getItem('guest_user');
+    if (existing) {
+      setUser(JSON.parse(existing));
       setLoading(false);
+      return;
     }
+    const guest = { id: 'guest', name: `Guest-${Math.floor(Math.random()*1000)}` };
+    localStorage.setItem('guest_user', JSON.stringify(guest));
+    setUser(guest);
+    setLoading(false);
   }, []);
 
   if (loading) {
@@ -60,18 +42,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home user={user} setUser={setUser} />} />
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/" /> : <Login setUser={setUser} />} 
-        />
-        <Route 
-          path="/signup" 
-          element={user ? <Navigate to="/" /> : <Signup setUser={setUser} />} 
-        />
-        <Route 
-          path="/editor" 
-          element={user ? <Editor user={user} /> : <Navigate to="/login" />} 
-        />
+        <Route path="/editor" element={<Editor user={user || { name: 'Guest' }} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

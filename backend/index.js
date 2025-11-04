@@ -5,8 +5,8 @@ import path from "path";
 import dotenv from "dotenv";
 import cors from "cors";
 import axios from "axios";
-import authRoutes from "./routes/auth.js";
-import db from "./config/database.js";
+// Auth and database are optional. When DISABLE_AUTH=true, we skip importing them
+let authRoutes = null;
 
 dotenv.config();
 
@@ -34,7 +34,17 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/api/auth", authRoutes);
+// Conditionally enable auth endpoints to avoid database usage when disabled
+if (process.env.DISABLE_AUTH === 'true') {
+  app.use('/api/auth', (_req, res) => {
+    res.status(503).json({ success: false, message: 'Auth is disabled' });
+  });
+} else {
+  // Dynamic import to avoid loading DB modules when auth is disabled
+  const authModule = await import('./routes/auth.js');
+  authRoutes = authModule.default;
+  app.use('/api/auth', authRoutes);
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -44,8 +54,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-// Routes
-app.use("/api/auth", authRoutes);
+// Routes already mounted above conditionally
 
 const server = http.createServer(app);
 
