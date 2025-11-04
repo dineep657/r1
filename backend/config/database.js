@@ -16,13 +16,9 @@ const dbConfig = {
   queueLimit: 0
 };
 
-console.log('🔌 Database config:', {
-  host: dbConfig.host,
-  port: dbConfig.port,
-  user: dbConfig.user,
-  database: dbConfig.database,
-  hasPassword: !!dbConfig.password
-});
+// Sensitive config values should not be logged in production environments
+// console.log('🔌 Database config:', { host: dbConfig.host, ... }) // intentionally removed
+console.log('🔌 Database config loaded');
 
 const pool = mysql.createPool(dbConfig);
 
