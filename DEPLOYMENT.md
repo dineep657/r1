@@ -36,8 +36,8 @@ This guide will help you deploy your real-time code editor for FREE using:
 3. Railway will detect your project
 4. In the **Settings** tab:
    - **Root Directory**: Leave empty (or set to project root)
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
+   - **Build Command**: Leave default (uses `railway.json` with `npm ci` - faster!)
+   - **Start Command**: Leave default (uses `railway.json` with `npm start`)
    - **Watch Paths**: Leave default
 
 5. Go to **"Variables"** tab and add these environment variables:
