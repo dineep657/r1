@@ -37,7 +37,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home user={user} setUser={setUser} />} />
-        <Route path="/editor" element={user ? <Editor user={user} /> : <Navigate to="/" />} />
+        <Route path="/editor" element={user ? <Editor user={user} setUser={setUser} /> : <Navigate to="/" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

@@ -6,7 +6,7 @@ import Editor from "@monaco-editor/react";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || "http://localhost:5001";
 
-const EditorComponent = ({ user }) => {
+const EditorComponent = ({ user, setUser }) => {
   const navigate = useNavigate();
   const [joined, setJoined] = useState(false);
   const [roomId, setRoomId] = useState("");
@@ -30,6 +30,11 @@ const EditorComponent = ({ user }) => {
   const chatUserColorsRef = useRef({}); // userName -> chat color
   const [userInput, setUserInput] = useState("");
   const [role, setRole] = useState("editor"); // viewer disables edits
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (user?.name && !name) setName(user.name);
+  }, [user]);
 
   // simple multi-file tabs
   const [files, setFiles] = useState([
@@ -251,23 +256,31 @@ const EditorComponent = ({ user }) => {
   }, [socket]);
 
   const joinRoom = () => {
-    if (!roomId || !user || !socket || !socketConnected) {
+    const effectiveName = (name || "").trim();
+    if (!roomId || !effectiveName || !user || !socket || !socketConnected) {
       if (!socketConnected) {
         alert('Please wait for connection to establish...');
       }
       return;
     }
     
-    console.log('Attempting to join room:', roomId, 'as user:', user.name);
+    // persist name to local storage and App state if changed
+    if (effectiveName !== user.name) {
+      const updated = { ...user, name: effectiveName };
+      localStorage.setItem('guest_user', JSON.stringify(updated));
+      try { setUser && setUser(updated); } catch {}
+    }
+
+    console.log('Attempting to join room:', roomId, 'as user:', effectiveName);
     
     // Set joined immediately to show UI
     setJoined(true);
     sessionStorage.setItem('roomId', roomId);
-    sessionStorage.setItem('userName', user.name);
+    sessionStorage.setItem('userName', effectiveName);
     
     // Emit join immediately
     if (socket && socket.connected) {
-      socket.emit("join", { roomId, userName: user.name });
+      socket.emit("join", { roomId, userName: effectiveName });
       console.log('Join event emitted for room:', roomId);
     } else {
       console.error('Socket not connected, cannot join room');
@@ -296,7 +309,7 @@ const EditorComponent = ({ user }) => {
     setCode(newCode);
     setFiles((fs) => fs.map(f => f.id === activeFileId ? { ...f, content: newCode, language } : f));
     socket.emit("codeChange", { roomId, code: newCode });
-    socket.emit("typing", { roomId, userName: user.name });
+    socket.emit("typing", { roomId, userName: (name || user.name) });
   };
 
   const handleEditorMount = (editor) => {
@@ -306,13 +319,13 @@ const EditorComponent = ({ user }) => {
     
     editor.onDidChangeCursorPosition((e) => {
       if (socket) {
-        socket.emit('cursorMove', { roomId, userName: user.name, position: e.position });
+        socket.emit('cursorMove', { roomId, userName: (name || user.name), position: e.position });
       }
     });
     editor.onDidChangeCursorSelection((e) => {
       if (!socket) return;
       const s = e.selection;
-      socket.emit('selectionChange', { roomId, userName: user.name, selection: {
+      socket.emit('selectionChange', { roomId, userName: (name || user.name), selection: {
         startLineNumber: s.startLineNumber,
         startColumn: s.startColumn,
         endLineNumber: s.endLineNumber,
@@ -339,7 +352,7 @@ const EditorComponent = ({ user }) => {
   const sendChat = () => {
     const message = chatInput.trim();
     if (!message || !socket) return;
-    socket.emit('chatMessage', { roomId, userName: user.name, message });
+    socket.emit('chatMessage', { roomId, userName: (name || user.name), message });
     setChatInput('');
   };
 
@@ -486,7 +499,7 @@ echo "Code executed successfully!" . PHP_EOL;
       version,
       input: userInput,
     });
-    socket.emit('runExecuted', { roomId, userName: user.name });
+    socket.emit('runExecuted', { roomId, userName: (name || user.name) });
   };
 
   // Tabs helpers
@@ -555,8 +568,15 @@ echo "Code executed successfully!" . PHP_EOL;
             fontSize: '1.1rem',
             fontWeight: '500'
           }}>
-            Welcome, {user.name}!
+            Enter your name to join
           </p>
+          <input
+            type="text"
+            placeholder="Your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={{ marginBottom: '0.5rem' }}
+          />
           <input
             type="text"
             placeholder="Enter Room ID"
@@ -614,7 +634,7 @@ echo "Code executed successfully!" . PHP_EOL;
             fontSize: '1rem',
             fontWeight: '500'
           }}>
-            {user.name}
+            {name || user.name}
           </p>
           <div style={{ marginTop: 6, color: '#bdc3c7' }}>Role: <strong>{role}</strong></div>
         </div>
@@ -624,7 +644,7 @@ echo "Code executed successfully!" . PHP_EOL;
           {users.map((userName, index) => (
             <li key={index}>
               {userName}
-              {userName === user.name && (
+              {userName === (name || user.name) && (
                 <span style={{ 
                   marginLeft: '0.5rem', 
                   color: '#2ecc71',
