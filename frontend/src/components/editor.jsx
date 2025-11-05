@@ -494,13 +494,27 @@ echo "Code executed successfully!" . PHP_EOL;
   };
 
   const runCode = () => {
-    if (role === 'viewer' || !socket) {
+    if (role === 'viewer') {
       alert('Viewers cannot execute code');
       return;
     }
     
-    if (!socket || !socket.connected) {
-      alert('Not connected to server. Please wait...');
+    if (!socket) {
+      alert('Not connected to server. Please wait for connection...');
+      return;
+    }
+    
+    if (!socket.connected) {
+      alert('Socket not connected. Please wait for connection to establish...');
+      // Try to wait for connection
+      socket.once('connect', () => {
+        runCode();
+      });
+      return;
+    }
+
+    if (!roomId) {
+      alert('Please join a room first');
       return;
     }
 
@@ -513,18 +527,24 @@ echo "Code executed successfully!" . PHP_EOL;
       language, 
       roomId, 
       codeLength: code.length,
-      codePreview: code.substring(0, 100)
+      codePreview: code.substring(0, 100),
+      socketConnected: socket.connected
     });
     setOutPut('Executing...');
     
-    socket.emit("compileCode", {
-      code,
-      roomId,
-      language,
-      version,
-      input: userInput,
-    });
-    socket.emit('runExecuted', { roomId, userName: user?.name || '' });
+    try {
+      socket.emit("compileCode", {
+        code,
+        roomId,
+        language,
+        version,
+        input: userInput,
+      });
+      socket.emit('runExecuted', { roomId, userName: user?.name || '' });
+    } catch (error) {
+      console.error('Error emitting compileCode:', error);
+      setOutPut('Error: Failed to send code execution request');
+    }
   };
 
   // Tabs helpers
