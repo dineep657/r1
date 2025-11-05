@@ -1,6 +1,17 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Prefer env, but in production fallback to the Render backend if not provided
+const inferApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim()) return envUrl.trim();
+  const isProd = typeof window !== 'undefined' && window.location.hostname && window.location.hostname.includes('vercel.app');
+  if (isProd) {
+    return 'https://realtime-code-backend-upxc.onrender.com';
+  }
+  return '/api'; // dev proxy
+};
+
+const API_URL = inferApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -32,7 +43,7 @@ api.interceptors.response.use(
       const normalized = {
         status: 0,
         data: null,
-        message: 'Unable to connect to server. Please ensure the backend server is running on port 5001.',
+        message: `Unable to connect to server. Check API availability at ${API_URL}.`,
       };
       console.error('Network error:', error.message);
       return Promise.reject(normalized);
