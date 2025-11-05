@@ -29,7 +29,7 @@ async function testConnection(retries = 3, delay = 2000) {
       const connection = await pool.getConnection();
       console.log('✅ Database connected successfully');
       connection.release();
-      return;
+      return true;
     } catch (err) {
       console.error(`❌ Database connection attempt ${i + 1}/${retries} failed:`, err.message);
       if (i < retries - 1) {
@@ -37,12 +37,11 @@ async function testConnection(retries = 3, delay = 2000) {
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         console.error('❌ All database connection attempts failed');
+        return false;
       }
     }
   }
 }
-
-testConnection();
 
 // Ensure required tables exist
 async function ensureSchema() {
@@ -66,6 +65,12 @@ async function ensureSchema() {
   }
 }
 
-ensureSchema();
+// Run database setup in background - don't block server startup
+(async () => {
+  const connected = await testConnection();
+  if (connected) {
+    await ensureSchema();
+  }
+})();
 
 export default pool;
