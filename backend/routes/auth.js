@@ -35,6 +35,23 @@ router.post('/signup', async (req, res) => {
       });
     }
 
+    // Disallow any digits in the name
+    if (/\d/.test(name)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name cannot contain numbers'
+      });
+    }
+
+    // Optional: allow only letters and spaces
+    const nameOnlyLetters = /^[A-Za-z\s]+$/;
+    if (!nameOnlyLetters.test(String(name).trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name can only contain letters and spaces'
+      });
+    }
+
     if (password !== confirmPassword) {
       return res.status(400).json({
         success: false,
