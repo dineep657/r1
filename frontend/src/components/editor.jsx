@@ -4,7 +4,18 @@ import "../App.css";
 import io from "socket.io-client";
 import Editor from "@monaco-editor/react";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || "http://localhost:5001";
+// Infer socket URL like API fallback: use env, else Render backend in prod, else localhost
+const inferSocketUrl = () => {
+  const envSocket = import.meta.env.VITE_SOCKET_URL;
+  if (envSocket && envSocket.trim()) return envSocket.trim();
+  const envApi = import.meta.env.VITE_API_URL;
+  if (envApi && envApi.trim()) return envApi.trim();
+  const isProd = typeof window !== 'undefined' && window.location.hostname && window.location.hostname.includes('vercel.app');
+  if (isProd) return 'https://realtime-code-backend-upxc.onrender.com';
+  return "http://localhost:5001";
+};
+
+const SOCKET_URL = inferSocketUrl();
 
 const EditorComponent = ({ user, setUser }) => {
   const navigate = useNavigate();
@@ -73,19 +84,7 @@ const EditorComponent = ({ user, setUser }) => {
       }
     };
 
-    const handleChatMessage = (msg) => {
-      console.log('Chat message received:', msg);
-      setChat((c) => [...c, msg]);
-    };
-
-    const handleSessionLog = (entry) => {
-      console.log('Session log received:', entry);
-      setLogs((l) => [entry, ...l].slice(0, 100));
-    };
-
     newSocket.on('userJoined', handleUserJoined);
-    newSocket.on('chatMessage', handleChatMessage);
-    newSocket.on('sessionLog', handleSessionLog);
 
     newSocket.on('connect', () => {
       console.log('Socket connected');
@@ -113,12 +112,6 @@ const EditorComponent = ({ user, setUser }) => {
     setSocket(newSocket);
 
     return () => {
-      newSocket.off('userJoined', handleUserJoined);
-      newSocket.off('chatMessage', handleChatMessage);
-      newSocket.off('sessionLog', handleSessionLog);
-      newSocket.off('connect');
-      newSocket.off('disconnect');
-      newSocket.off('connect_error');
       newSocket.close();
     };
   }, [user]);
@@ -190,11 +183,17 @@ const EditorComponent = ({ user, setUser }) => {
       }
     };
 
-    // Note: handleChatMessage and handleSessionLog are registered in socket initialization useEffect above
-    
+    const handleChatMessage = (msg) => {
+      setChat((c) => [...c, msg]);
+    };
+
     const handleChatTyping = ({ userName }) => {
       setTyping(`${userName.slice(0, 15)}... is Typing`);
       setTimeout(() => setTyping(""), 1500);
+    };
+
+    const handleSessionLog = (entry) => {
+      setLogs((l) => [entry, ...l].slice(0, 100));
     };
 
     const handleCursorUpdate = ({ userName, position }) => {
@@ -247,22 +246,26 @@ const EditorComponent = ({ user, setUser }) => {
       } catch {}
     };
 
-    // userJoined, chatMessage, and sessionLog are registered in socket initialization useEffect above
+    socket.on("userJoined", handleUserJoined);
     socket.on("codeUpdate", handleCodeUpdate);
     socket.on("userTyping", handleUserTyping);
     socket.on("languageUpdate", handleLanguageUpdate);
     socket.on("codeResponse", handleCodeResponse);
+    socket.on("chatMessage", handleChatMessage);
     socket.on("chatTyping", handleChatTyping);
+    socket.on("sessionLog", handleSessionLog);
     socket.on("cursorUpdate", handleCursorUpdate);
     socket.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
-      // userJoined, chatMessage, and sessionLog are cleaned up in socket initialization useEffect
+      socket.off("userJoined", handleUserJoined);
       socket.off("codeUpdate", handleCodeUpdate);
       socket.off("userTyping", handleUserTyping);
       socket.off("languageUpdate", handleLanguageUpdate);
       socket.off("codeResponse", handleCodeResponse);
+      socket.off("chatMessage", handleChatMessage);
       socket.off("chatTyping", handleChatTyping);
+      socket.off("sessionLog", handleSessionLog);
       socket.off("cursorUpdate", handleCursorUpdate);
       socket.off("selectionUpdate", handleSelectionUpdate);
     };
@@ -284,71 +287,33 @@ const EditorComponent = ({ user, setUser }) => {
 
   const joinRoom = () => {
     const effectiveName = (user?.name || "").trim();
-    
-    if (!roomId || !roomId.trim()) {
-      alert('Please enter a room ID or create a new room');
+    if (!roomId || !effectiveName || !user || !socket) {
+      if (!socket) {
+        alert('Please wait for connection to establish...');
+      }
       return;
     }
-    
-    if (!effectiveName || !user) {
-      alert('User information is missing. Please log in again.');
-      return;
-    }
-    
-    if (!socket) {
-      alert('Socket not initialized. Please wait and try again.');
-      return;
-    }
-    
-    console.log('Attempting to join room:', roomId, 'as user:', effectiveName, 'Socket connected:', socket.connected);
     
     // Wait for socket to be connected
     if (!socket.connected) {
       console.log('Waiting for socket connection...');
-      let timeoutId = null;
-      
-      const connectHandler = () => {
-        if (timeoutId) clearTimeout(timeoutId);
+      socket.once('connect', () => {
         console.log('Socket connected, joining room now');
-        // Retry joining after connection
-        setTimeout(() => {
-          joinRoom();
-        }, 100);
-      };
-      
-      timeoutId = setTimeout(() => {
-        socket.off('connect', connectHandler);
-        alert('Connection timeout. Please check your internet connection and try again.');
-      }, 10000); // 10 second timeout
-      
-      socket.once('connect', connectHandler);
-      
-      // Also handle connection errors
-      const errorHandler = () => {
-        if (timeoutId) clearTimeout(timeoutId);
-        socket.off('connect', connectHandler);
-        alert('Failed to connect to server. Please check your internet connection.');
-      };
-      
-      socket.once('connect_error', errorHandler);
-      
+        joinRoom();
+      });
       return;
     }
     
+    console.log('Attempting to join room:', roomId, 'as user:', effectiveName);
+    
     // Set joined immediately to show UI
     setJoined(true);
-    sessionStorage.setItem('roomId', roomId.trim());
+    sessionStorage.setItem('roomId', roomId);
     sessionStorage.setItem('userName', effectiveName);
     
     // Emit join - socket is connected
-    try {
-      socket.emit("join", { roomId: roomId.trim(), userName: effectiveName });
-      console.log('Join event emitted for room:', roomId.trim());
-    } catch (error) {
-      console.error('Error emitting join event:', error);
-      setJoined(false);
-      alert('Failed to join room. Please try again.');
-    }
+    socket.emit("join", { roomId, userName: effectiveName });
+    console.log('Join event emitted for room:', roomId);
   };
 
   const leaveRoom = () => {
@@ -532,27 +497,13 @@ echo "Code executed successfully!" . PHP_EOL;
   };
 
   const runCode = () => {
-    if (role === 'viewer') {
+    if (role === 'viewer' || !socket) {
       alert('Viewers cannot execute code');
       return;
     }
     
-    if (!socket) {
-      alert('Not connected to server. Please wait for connection...');
-      return;
-    }
-    
-    if (!socket.connected) {
-      alert('Socket not connected. Please wait for connection to establish...');
-      // Try to wait for connection
-      socket.once('connect', () => {
-        runCode();
-      });
-      return;
-    }
-
-    if (!roomId) {
-      alert('Please join a room first');
+    if (!socket || !socket.connected) {
+      alert('Not connected to server. Please wait...');
       return;
     }
 
@@ -565,24 +516,18 @@ echo "Code executed successfully!" . PHP_EOL;
       language, 
       roomId, 
       codeLength: code.length,
-      codePreview: code.substring(0, 100),
-      socketConnected: socket.connected
+      codePreview: code.substring(0, 100)
     });
     setOutPut('Executing...');
     
-    try {
-      socket.emit("compileCode", {
-        code,
-        roomId,
-        language,
-        version,
-        input: userInput,
-      });
-      socket.emit('runExecuted', { roomId, userName: user?.name || '' });
-    } catch (error) {
-      console.error('Error emitting compileCode:', error);
-      setOutPut('Error: Failed to send code execution request');
-    }
+    socket.emit("compileCode", {
+      code,
+      roomId,
+      language,
+      version,
+      input: userInput,
+    });
+    socket.emit('runExecuted', { roomId, userName: user?.name || '' });
   };
 
   // Tabs helpers
@@ -670,24 +615,12 @@ echo "Code executed successfully!" . PHP_EOL;
             style={{ marginBottom: '0.5rem' }}
           />
           <button onClick={createRoomId} style={{ marginBottom: '0.5rem' }}>Create New Room</button>
-          <button 
-            onClick={joinRoom} 
-            disabled={!roomId || !roomId.trim() || !user}
-            style={{
-              opacity: (!roomId || !roomId.trim() || !user) ? 0.5 : 1,
-              cursor: (!roomId || !roomId.trim() || !user) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {socket && socket.connected ? 'Join Room' : socket ? 'Connecting...' : 'Initializing...'}
+          <button onClick={joinRoom} disabled={!roomId || !socket}>
+            {socket ? 'Join Room' : 'Connecting...'}
           </button>
-          {socket && !socket.connected && (
-            <p style={{ color: '#ffa500', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Waiting for server connection...
-            </p>
-          )}
           {!socket && (
             <p style={{ color: '#ffa500', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Initializing connection...
+              Waiting for server connection...
             </p>
           )}
           <button 
