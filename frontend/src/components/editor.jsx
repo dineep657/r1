@@ -73,7 +73,19 @@ const EditorComponent = ({ user, setUser }) => {
       }
     };
 
+    const handleChatMessage = (msg) => {
+      console.log('Chat message received:', msg);
+      setChat((c) => [...c, msg]);
+    };
+
+    const handleSessionLog = (entry) => {
+      console.log('Session log received:', entry);
+      setLogs((l) => [entry, ...l].slice(0, 100));
+    };
+
     newSocket.on('userJoined', handleUserJoined);
+    newSocket.on('chatMessage', handleChatMessage);
+    newSocket.on('sessionLog', handleSessionLog);
 
     newSocket.on('connect', () => {
       console.log('Socket connected');
@@ -102,6 +114,8 @@ const EditorComponent = ({ user, setUser }) => {
 
     return () => {
       newSocket.off('userJoined', handleUserJoined);
+      newSocket.off('chatMessage', handleChatMessage);
+      newSocket.off('sessionLog', handleSessionLog);
       newSocket.off('connect');
       newSocket.off('disconnect');
       newSocket.off('connect_error');
@@ -176,17 +190,11 @@ const EditorComponent = ({ user, setUser }) => {
       }
     };
 
-    const handleChatMessage = (msg) => {
-      setChat((c) => [...c, msg]);
-    };
-
+    // Note: handleChatMessage and handleSessionLog are registered in socket initialization useEffect above
+    
     const handleChatTyping = ({ userName }) => {
       setTyping(`${userName.slice(0, 15)}... is Typing`);
       setTimeout(() => setTyping(""), 1500);
-    };
-
-    const handleSessionLog = (entry) => {
-      setLogs((l) => [entry, ...l].slice(0, 100));
     };
 
     const handleCursorUpdate = ({ userName, position }) => {
@@ -239,26 +247,22 @@ const EditorComponent = ({ user, setUser }) => {
       } catch {}
     };
 
-    // userJoined is registered in socket initialization useEffect above
+    // userJoined, chatMessage, and sessionLog are registered in socket initialization useEffect above
     socket.on("codeUpdate", handleCodeUpdate);
     socket.on("userTyping", handleUserTyping);
     socket.on("languageUpdate", handleLanguageUpdate);
     socket.on("codeResponse", handleCodeResponse);
-    socket.on("chatMessage", handleChatMessage);
     socket.on("chatTyping", handleChatTyping);
-    socket.on("sessionLog", handleSessionLog);
     socket.on("cursorUpdate", handleCursorUpdate);
     socket.on("selectionUpdate", handleSelectionUpdate);
 
     return () => {
-      socket.off("userJoined", handleUserJoined);
+      // userJoined, chatMessage, and sessionLog are cleaned up in socket initialization useEffect
       socket.off("codeUpdate", handleCodeUpdate);
       socket.off("userTyping", handleUserTyping);
       socket.off("languageUpdate", handleLanguageUpdate);
       socket.off("codeResponse", handleCodeResponse);
-      socket.off("chatMessage", handleChatMessage);
       socket.off("chatTyping", handleChatTyping);
-      socket.off("sessionLog", handleSessionLog);
       socket.off("cursorUpdate", handleCursorUpdate);
       socket.off("selectionUpdate", handleSelectionUpdate);
     };
