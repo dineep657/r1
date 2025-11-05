@@ -3,21 +3,36 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Support both Railway's automatic MYSQL* variables and custom DB_* variables
-// Railway automatically provides: MYSQLHOST, MYSQLPORT, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE
-const dbConfig = {
-  host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
-  user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
-  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
-  database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'codecollab',
-  port: parseInt(process.env.MYSQLPORT || process.env.DB_PORT || '3306', 10),
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-};
+// Support DATABASE_URL (preferred for cloud deployments) or individual variables
+let dbConfig;
 
-// Sensitive config values should not be logged in production environments
-// console.log('🔌 Database config:', { host: dbConfig.host, ... }) // intentionally removed
+if (process.env.DATABASE_URL) {
+  // Parse DATABASE_URL: mysql://user:password@host:port/database
+  const url = new URL(process.env.DATABASE_URL);
+  dbConfig = {
+    host: url.hostname,
+    user: url.username,
+    password: url.password,
+    database: url.pathname.slice(1), // Remove leading slash
+    port: parseInt(url.port, 10),
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  };
+} else {
+  // Fallback to individual environment variables
+  dbConfig = {
+    host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
+    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
+    database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'codecollab',
+    port: parseInt(process.env.MYSQLPORT || process.env.DB_PORT || '3306', 10),
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  };
+}
+
 console.log('🔌 Database config loaded');
 
 const pool = mysql.createPool(dbConfig);
