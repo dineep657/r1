@@ -89,12 +89,14 @@ const io = new Server(server, {
   },
 });
 
-// Track room users
-const roomIdToUsers = new Map(); // roomId -> Set(userName)
+// Track room users - Map of roomId -> Map of socketId -> userName
+const roomIdToUsers = new Map(); // roomId -> Map(socketId -> userName)
 
 io.on('connection', (socket) => {
   let currentRoomId = null;
   let currentUserName = null;
+
+  console.log(`Socket connected: ${socket.id}`);
 
   socket.on('join', ({ roomId, userName }) => {
     if (!roomId || !userName) {
@@ -102,16 +104,18 @@ io.on('connection', (socket) => {
       return;
     }
 
-    console.log(`User ${userName} joining room ${roomId}`);
-    
+    console.log(`User ${userName} (socket: ${socket.id}) joining room ${roomId}`);
+
     // Leave previous room if any
     if (currentRoomId && currentRoomId !== roomId) {
       socket.leave(currentRoomId);
       const prevUsers = roomIdToUsers.get(currentRoomId);
       if (prevUsers) {
-        prevUsers.delete(currentUserName);
+        prevUsers.delete(socket.id);
         if (prevUsers.size > 0) {
-          io.to(currentRoomId).emit('userJoined', Array.from(prevUsers));
+          const userList = Array.from(new Set(prevUsers.values()));
+          io.to(currentRoomId).emit('userJoined', userList);
+          console.log(`Updated users in room ${currentRoomId}:`, userList);
         } else {
           roomIdToUsers.delete(currentRoomId);
         }
@@ -123,26 +127,38 @@ io.on('connection', (socket) => {
 
     socket.join(roomId);
 
-    const users = roomIdToUsers.get(roomId) || new Set();
-    users.add(userName);
-    roomIdToUsers.set(roomId, users);
+    // Get or create user map for this room
+    if (!roomIdToUsers.has(roomId)) {
+      roomIdToUsers.set(roomId, new Map());
+    }
+    const usersMap = roomIdToUsers.get(roomId);
+    usersMap.set(socket.id, userName);
 
-    console.log(`Room ${roomId} now has users:`, Array.from(users));
-    
+    // Get unique user names
+    const userList = Array.from(new Set(usersMap.values()));
+    console.log(`Room ${roomId} now has users:`, userList, `(${usersMap.size} connections)`);
+
     // Emit to all users in the room (including the one who just joined)
-    io.to(roomId).emit('userJoined', Array.from(users));
+    io.to(roomId).emit('userJoined', userList);
   });
 
   socket.on('leaveRoom', () => {
     if (!currentRoomId) return;
 
+    console.log(`User ${currentUserName} (socket: ${socket.id}) leaving room ${currentRoomId}`);
     socket.leave(currentRoomId);
 
-    const users = roomIdToUsers.get(currentRoomId);
-    if (users) {
-      users.delete(currentUserName);
-      roomIdToUsers.set(currentRoomId, users);
-      io.to(currentRoomId).emit('userJoined', Array.from(users));
+    const usersMap = roomIdToUsers.get(currentRoomId);
+    if (usersMap) {
+      usersMap.delete(socket.id);
+      if (usersMap.size > 0) {
+        const userList = Array.from(new Set(usersMap.values()));
+        io.to(currentRoomId).emit('userJoined', userList);
+        console.log(`Updated users in room ${currentRoomId}:`, userList);
+      } else {
+        roomIdToUsers.delete(currentRoomId);
+        console.log(`Room ${currentRoomId} is now empty`);
+      }
     }
 
     currentRoomId = null;
@@ -150,14 +166,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    console.log(`Socket disconnected: ${socket.id}`);
     if (!currentRoomId) return;
 
-    const users = roomIdToUsers.get(currentRoomId);
-    if (users) {
-      users.delete(currentUserName);
-      roomIdToUsers.set(currentRoomId, users);
-      io.to(currentRoomId).emit('userJoined', Array.from(users));
-      io.to(currentRoomId).emit('sessionLog', { type: 'leave', user: currentUserName, timestamp: Date.now() });
+    const usersMap = roomIdToUsers.get(currentRoomId);
+    if (usersMap) {
+      usersMap.delete(socket.id);
+      if (usersMap.size > 0) {
+        const userList = Array.from(new Set(usersMap.values()));
+        io.to(currentRoomId).emit('userJoined', userList);
+        io.to(currentRoomId).emit('sessionLog', { type: 'leave', user: currentUserName, timestamp: Date.now() });
+        console.log(`User ${currentUserName} disconnected from room ${currentRoomId}. Remaining users:`, userList);
+      } else {
+        roomIdToUsers.delete(currentRoomId);
+        console.log(`Room ${currentRoomId} is now empty after disconnect`);
+      }
     }
   });
 
@@ -371,3 +394,5 @@ process.on('unhandledRejection', (reason) => {
 });
 
 startServer(process.env.PORT || 5000);
+
+
