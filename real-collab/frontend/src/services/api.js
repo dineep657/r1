@@ -18,9 +18,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Normalize error responses so components can show meaningful messages
@@ -32,12 +30,13 @@ api.interceptors.response.use(
       const normalized = {
         status: 0,
         data: null,
-        message: 'Unable to connect to server. Please ensure the backend server is running on port 5001.',
+        message:
+          'Unable to connect to the backend server. Please check if your backend URL is correct or if the server is reachable.',
       };
       console.error('Network error:', error.message);
       return Promise.reject(normalized);
     }
-    
+
     const normalized = {
       status: error?.response?.status,
       data: error?.response?.data,
