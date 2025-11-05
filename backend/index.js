@@ -12,11 +12,15 @@ dotenv.config();
 
 const app = express();
 
-// Get allowed origins from environment variable or use defaults
+// Get allowed origins from environment variable or use sensible defaults
+// In production, if FRONTEND_URL is not set, allow the deployed Vercel frontend by default
 const allowedOrigins = process.env.FRONTEND_URL 
   ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
   : process.env.NODE_ENV === 'production'
-  ? [] // Will be set in production
+  ? [
+      // Default production frontend (update if your Vercel URL changes)
+      'https://realcollabfrontend-omega.vercel.app'
+    ]
   : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 // Middleware
