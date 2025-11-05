@@ -24,7 +24,7 @@ const allowedOrigins = process.env.FRONTEND_URL
   : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 // Middleware
-app.use(cors({
+const corsOptions = {
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, curl, etc)
     if (!origin) return callback(null, true);
@@ -34,8 +34,15 @@ app.use(cors({
     }
     return callback(null, true);
   },
-  credentials: true
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+// Explicitly handle preflight requests for all routes
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // Conditionally enable auth endpoints to avoid database usage when disabled
