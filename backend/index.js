@@ -24,12 +24,29 @@ const allowedOrigins = process.env.FRONTEND_URL
   : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 // Middleware
+function isAllowedOrigin(origin) {
+  // Always allow in non-production
+  if (process.env.NODE_ENV !== 'production') return true;
+
+  // Exact matches from env/defaults
+  if (allowedOrigins.includes(origin)) return true;
+
+  // Allow Vercel preview and production deployments for this app
+  // Examples:
+  // https://realcollabfrontend-omega.vercel.app
+  // https://realcollabfrontend-git-master-dineeps-projects.vercel.app
+  const vercelPattern = /^https?:\/\/(?:[a-z0-9-]+-)?realcollabfrontend(?:-[a-z0-9-]+)?\.(?:vercel)\.app$/i;
+  if (vercelPattern.test(origin)) return true;
+
+  return false;
+}
+
 const corsOptions = {
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, curl, etc)
     if (!origin) return callback(null, true);
-    const isAllowed = allowedOrigins.includes(origin) || (process.env.NODE_ENV !== 'production');
-    if (!isAllowed) {
+    const allowed = isAllowedOrigin(origin);
+    if (!allowed) {
       return callback(new Error('CORS policy violation'), false);
     }
     return callback(null, true);
@@ -86,10 +103,7 @@ const io = new Server(server, {
   cors: {
     origin: function(origin, callback) {
       if (!origin) return callback(null, true);
-      const isAllowed = allowedOrigins.includes(origin) || 
-                       allowedOrigins.length === 0 || // Allow all in production if no specific origins set
-                       (process.env.NODE_ENV !== 'production');
-      if (!isAllowed) {
+      if (!isAllowedOrigin(origin)) {
         console.log('Socket.IO CORS blocked origin:', origin);
         return callback(new Error('CORS policy violation'), false);
       }
