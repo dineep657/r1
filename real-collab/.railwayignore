@@ -1,0 +1,15 @@
+# Ignore frontend files to speed up deployment (backend only)
+frontend/
+frontend/**
+.git/
+.vscode/
+.idea/
+*.log
+.DS_Store
+.env.local
+.env.development
+README.md
+DEPLOYMENT.md
+render.yaml
+vercel.json
+
